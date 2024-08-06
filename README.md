@@ -11,11 +11,13 @@ This project uses `python 3.12.4`, `qiskit 1.1.1`, and `rustworkx 0.15.1` (which
 $ conda create -n quekno
 $ conda activate quekno
 ```
-Then, navigate to the root directory this repository and run:
+Then, navigate to the root directory of this repository and run:
 ```bash
 $ sh install.sh
 ```
 Alternatively, the user may choose to manually install the packages listed in `install.sh`.
+
+Once generated, benchmarks may be found in `out`.
 
 ## Benchmark construction
 
@@ -50,7 +52,7 @@ Here, `objective = {gate, depth}` and `archgraph = {tokyo, rochester, sycamore}`
 The file `config.py` defines a number of constants which affect the speed and output of the benchmark construction:
 
 - `ONE_QUBIT_GATE` and `TWO_QUBIT_GATE` specify the type of gates used in the constructed circuits;
-- `CONSEC_SWAP_BIAS` specifies the bias (if any) towards selecting consecutive swaps for `opt_type = OPT2`: a value $k$ indicates that a $0.5 + k$ probability of selecting consecutive swaps;
+- `CONSEC_SWAP_BIAS` specifies the bias (if any) towards selecting consecutive swaps for `opt_type = OPT2`: a value $k$ indicates a $0.5 + k$ probability of selecting consecutive swaps;
 - `SUBGRAPH_SIZE_STD` specifies the variance in the number of edges $m$ of randomly generated glink subgraphs: a value $\sigma$ indicates that $m \sim \mathcal N(\mu, \sigma^2)$ where $\mu$ is `subgraph_size`;
 - `RAND_EDGES_VAR` specifies the variance in the number of edges (2-qubit gates) randomly sampled from glink subgraphs during circuit construction: a value $k$ indicates that the number of edges sampled is $m(1 + kn)$ where $n \sim \mathcal U\{1,4\}$ ($\mathcal U$ denoting the discrete uniform distribution) and $m$ is the number edges in the subgraph;
 - `GLINK_SEARCH_PATIENCE` specifies the number of attempts to find a strong glink-inducing permutation before moving on to another glink, i.e., generating another subgraph.

@@ -8,10 +8,10 @@ from qiskit import QuantumCircuit, qasm2
 from qiskit.transpiler.passes import RemoveBarriers
 from tqdm import tqdm
 
-from lib.graph_utils import Tokyo, graph_from_name
+from lib import QUEKNO
+from lib.graph_utils import *
 from lib.utils import *
 from config import *
-from quekno import QUEKNO
 
 CIRCUITS_ROOT = lambda benchmark: f"out/{benchmark}/circuits"
 CIRCUITS_BARRIERED_ROOT = lambda benchmark: f"out/{benchmark}/circuits_barriered"

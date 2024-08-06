@@ -7,8 +7,11 @@ from qiskit import QuantumCircuit
 from qiskit.circuit import CircuitError
 from typing import Iterator
 
-from lib import Edge, GlinkChain, Graph, Permutation
-from lib.utils import *
+from .glink import GlinkChain
+from .graph import Graph
+from .graph_data import Edge
+from .permutation import Permutation
+from .utils import *
 from config import *
 
 
