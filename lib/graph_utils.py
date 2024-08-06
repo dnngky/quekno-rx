@@ -1,7 +1,6 @@
 from rustworkx import generators
 
 from .graph import Graph
-from .utils import singleton
 
 
 def graph_from_name(name: str, **kwargs) -> Graph:
@@ -67,7 +66,6 @@ class Star(Graph):
         super().__init__(star, f"star({num_nodes})")
 
 
-@singleton
 class Tokyo(Graph):
     """
     IBM Q Tokyo (20 qubits).
@@ -87,7 +85,6 @@ class Tokyo(Graph):
         super().__init__(tokyo, "tokyo")
 
 
-@singleton
 class Rochester(Graph):
     """
     IBM Q Rochester (53 qubits).
@@ -114,7 +111,6 @@ class Rochester(Graph):
         super().__init__(rochester, "rochester")
 
 
-@singleton
 class Sycamore54(Graph):
     """
     Google Sycamore (54 qubits).
@@ -135,7 +131,6 @@ class Sycamore54(Graph):
         super().__init__(sycamore54, "sycamore54")
 
 
-@singleton
 class Sycamore(Graph):
     """
     Google Sycamore (53 qubits).
@@ -153,6 +148,10 @@ if __name__ == "__main__":
 
     tokyo = Tokyo()
     rochester = Rochester()
-    sycamore = Sycamore54()
     sycamore = Sycamore()
-    print(singleton.objs)
+
+    # Test inheritance
+    print(f"{isinstance(tokyo, Tokyo) = }")
+    print(f"{isinstance(tokyo, Rochester) = }")
+    print(f"{isinstance(tokyo, Sycamore) = }")
+    print(f"{isinstance(tokyo, Graph) = }")

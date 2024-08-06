@@ -1,18 +1,14 @@
 import math
 import random as rd
-import rustworkx as rx
 import time
 import warnings
 
 from qiskit import QuantumCircuit
 from qiskit.circuit import CircuitError
-from typing import Iterator, Optional
+from typing import Iterator
 
-from lib.glink import GlinkChain
-from lib.graph import Graph
-from lib.graph_data import Edge
-from lib.permutation import Permutation
-from lib.utils import is_disjoint
+from lib import Edge, GlinkChain, Graph, Permutation
+from lib.utils import *
 from config import *
 
 
@@ -85,6 +81,15 @@ class QUEKNO:
     @qbg_ratio.setter
     def qbg_ratio(self, qbg_ratio: QBGRatio) -> None:
         self.__qbg_ratio = qbg_ratio.value
+
+    def random_subgraph(self) -> Graph:
+        """
+        Generate a random subgraph with average number of edges as per `self.subgraph_size`.
+        """
+        num_edges = math.ceil(rd.gauss(self.subgraph_size, SUBGRAPH_SIZE_STD))
+        num_edges = max(num_edges, 1)
+        num_edges = min(num_edges, self.archgraph.num_edges)
+        return self.archgraph.random_subgraph(num_edges)
 
     def __consecutive_permutations(self, num_swaps: int) -> Iterator[Permutation]:
 
@@ -160,52 +165,6 @@ class QUEKNO:
             perms = self.__parallel_permutations()
         return perms
 
-    def is_strong_glink(
-        self,
-        prev_subgraph: Graph,
-        next_subgraph: Graph,
-        perm: Optional[Permutation] = None
-    ) -> bool:
-        """
-        Determine whether the given glink is strong.
-
-        Params:
-        - `prev_subgraph`: previous subgraph in the glink
-        - `next_subgraph`: next subgraph in the glink
-        - `perms`: permutation inducing the glink
-
-        Returns:
-        - True if the induced glink is strong
-        """
-        # If there is no permutation then the glink cannot be strong
-        if perm is None:
-            return False
-
-        # Construct permuted graph
-        perm_graph = next_subgraph.copy()
-        for src, dst in perm.items():
-            perm_graph.permute(src, dst, inplace = True)
-
-        # If no changes have been made then the glink cannot be strong
-        if perm_graph == next_subgraph:
-            return False
-
-        # Glink is strong if its union graph is not isomorphic to archgraph
-        return rx.is_subgraph_isomorphic(
-            self.archgraph.pygraph(),
-            prev_subgraph.union(perm_graph).pygraph(),
-            induced = False
-        )
-    
-    def random_subgraph(self) -> Graph:
-        """
-        Generate a random subgraph with average number of edges as per `self.subgraph_size`.
-        """
-        num_edges = math.ceil(rd.gauss(self.subgraph_size, SUBGRAPH_SIZE_STD))
-        num_edges = max(num_edges, 1)
-        num_edges = min(num_edges, self.archgraph.num_edges)
-        return self.archgraph.random_subgraph(num_edges)
-
     def next_glink(self, glink_chain: GlinkChain, cost: int) -> tuple[Graph, Permutation]:
         """
         Find the next (strong) glink in the given glink chain.
@@ -218,8 +177,8 @@ class QUEKNO:
         - the subgraph and permutation inducing the next glink
         """
         prev_subgraph = glink_chain.tail.graph
-
         done = False
+
         while not done:
 
             # Randomly generate next subgraph
@@ -230,11 +189,12 @@ class QUEKNO:
             next_perm = None
 
             # Try each permutation until a non-isomorphic union graph is induced
-            while not (done := self.is_strong_glink(prev_subgraph, next_subgraph, next_perm)):
+            for _ in range(GLINK_SEARCH_PATIENCE):
                 try:
                     next_perm = next(perms)
-                # If all perms have been exhausted, regenerate dst_subgraph
                 except StopIteration:
+                    break # if all perms have been exhausted, regenerate dst_subgraph
+                if (done := is_strong_glink(self.archgraph, prev_subgraph, next_subgraph, next_perm)):
                     break
         
         return next_subgraph, next_perm
@@ -445,7 +405,7 @@ class QUEKNO:
             "gate_cost": routed_circuit.decompose("swap").size() - circuit.size(),
             "depth_cost": routed_circuit.decompose("swap").depth() - circuit.depth(),
             # permutations
-            "init_map": glink_chain.head.perm.values(),
+            "init_map": glink_chain.head.perm.oneline(highlight = False),
             "swaps": [glink.perm.items() for glink in glink_chain.glinks() if glink != glink_chain.head],
             # build time
             "build_time": t1 - t0
@@ -458,7 +418,7 @@ if __name__ == "__main__":
     from lib.graph_utils import Tokyo
 
     builder = QUEKNO(
-        opt_type = OptType.DEPTH,
+        opt_type = OptType.OPT2,
         target_cost = 3,
         archgraph = Tokyo(),
         subgraph_size = SubgraphSize.SMALL,
@@ -467,6 +427,7 @@ if __name__ == "__main__":
     circuit, routed_circuit, results = builder.run(add_barriers = True)
     print("=== RESULTS ===")
     for key, val in results.items():
-        print(f"{key}: {val}")
-    print("=== CIRCUIT ===")
-    print(routed_circuit)
+        if key == "swaps":
+            print(f"{key}: {'; '.join(map(str, val))}")
+        else:
+            print(f"{key}: {val}")

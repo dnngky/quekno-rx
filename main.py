@@ -8,8 +8,8 @@ from qiskit import QuantumCircuit, qasm2
 from qiskit.transpiler.passes import RemoveBarriers
 from tqdm import tqdm
 
-from lib.graph import Graph
 from lib.graph_utils import Tokyo, graph_from_name
+from lib.utils import *
 from config import *
 from quekno import QUEKNO
 
@@ -19,8 +19,7 @@ RESULTS_ROOT = lambda benchmark: f"out/{benchmark}/results"
 
 
 def benchmark_name(opt: str, archgraph: Graph):
-    num_qubits = 20 if archgraph.name == "tokyo" else 53
-    return f"{num_qubits}Q_{opt}_{archgraph.name.capitalize()}"
+    return f"{archgraph.num_nodes}Q_{opt}_{archgraph.name.capitalize()}"
 
 def export_circuits(
     root: str,
@@ -33,7 +32,7 @@ def export_circuits(
         qasm2.dump(circuit, os.path.join(barriered_root, name + ".qasm"))
         qasm2.dump(RemoveBarriers()(circuit), os.path.join(root, name + ".qasm"))
     else:
-        qasm2.dump(circuit, os.path.join(CIRCUITS_ROOT, name + ".qasm"))
+        qasm2.dump(circuit, os.path.join(root, name + ".qasm"))
 
 def export_results(
     root: str,
@@ -43,33 +42,39 @@ def export_results(
     with open(os.path.join(root, name + ".txt"), "w") as f:
         f.write(f"name: {name}\n")
         for key, val in results.items():
-            if isinstance(val, float):
-                val = f"{val:.3f}" # round to 3 sf
-            f.write(f"{key}: {val}\n")
+            if key == "build_time":
+                pass
+            elif key == "swaps":
+                f.write(f"{key}:\n")
+                for swap_seq in val:
+                    f.write(", ".join(map(str, swap_seq)) + '\n')
+            else:
+                val = f"{val:.3f}" if isinstance(val, float) else val # round to 3 sf
+                f.write(f"{key}: {val}\n")
 
-def main(opt: str, archgraph: Graph) -> int:
+def main(objective: str, archgraph: Graph) -> int:
 
-    subgraph_sizes = (SubgraphSize.TOKYO,) if archgraph.name == "tokyo" else (SubgraphSize.SMALL, SubgraphSize.LARGE)
-    opt_types = (OptType.OPT1, OptType.OPT2) if opt == "gate" else (OptType.DEPTH,)
-    target_costs = (0, 1, 2, 3, 4, 5, 10, 15, 20, 25) if opt == "gate" else (1, 2, 3, 4, 5, 10)
-    qbg_ratios = (QBGRatio.TFL,) if opt == "gate" else (QBGRatio.TFL, QBGRatio.QSE)
+    subgraph_sizes = (SubgraphSize.TOKYO,) if isinstance(archgraph, Tokyo) else (SubgraphSize.SMALL, SubgraphSize.LARGE)
+    opt_types = (OptType.OPT1, OptType.OPT2) if objective == "gate" else (OptType.DEPTH,)
+    target_costs = (0, 1, 2, 3, 4, 5, 10, 15, 20, 25) if objective == "gate" else (1, 2, 3, 4, 5, 10)
+    qbg_ratios = (QBGRatio.TFL,) if objective == "gate" else (QBGRatio.TFL, QBGRatio.QSE)
 
-    benchmark = benchmark_name(opt, archgraph)
+    benchmark = benchmark_name(objective, archgraph)
     num_circuits = len(subgraph_sizes) * len(opt_types) * len(target_costs) * len(qbg_ratios) * 10
     prog_bar = tqdm(total = num_circuits, leave = False)
 
     params = it.product(subgraph_sizes, opt_types, target_costs, qbg_ratios, range(10))
     for subgraph_size, opt_type, target_cost, qbg_ratio, i in params:
         
-        num_qubits = 20 if archgraph.name == "tokyo" else 53
         size = "small" if subgraph_size == SubgraphSize.SMALL else "large"
-        name = f"{num_qubits}QBT_{opt}_{archgraph.name.capitalize()}_{size}_{opt_type.value}_{target_cost}_{qbg_ratio.value}_no.{i}"
+        opt = "opt" if opt_type.value == OptType.DEPTH else opt_type.value
+        name = f"{benchmark}_{size}_{opt}_{target_cost}_{qbg_ratio.value}_no.{i}"
         builder = QUEKNO(
             opt_type = opt_type,
             target_cost = target_cost,
-            archgraph = Tokyo(),
-            subgraph_size = SubgraphSize.TOKYO,
-            qbg_ratio = QBGRatio.TFL
+            archgraph = archgraph,
+            subgraph_size = subgraph_size,
+            qbg_ratio = qbg_ratio
         )
         circuit, _, results = builder.run(add_barriers = True, verbose = False)
 
@@ -101,13 +106,13 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 3:
         raise ValueError("requires opt and name")
-    if (opt := sys.argv[1].lower()) not in ("gate", "depth"):
-        raise ValueError("opt needs to be either 'gate' or 'depth'")
-    if (name := sys.argv[2].lower()) not in ("tokyo", "rochester", "sycamore"):
-        raise ValueError("name needs to be either 'tokyo', 'rochester', or 'sycamore'")
+    if (objective := sys.argv[1].lower()) not in ("gate", "depth"):
+        raise ValueError("obj needs to be either 'gate' or 'depth'")
+    if (archgraph := sys.argv[2].lower()) not in ("tokyo", "rochester", "sycamore"):
+        raise ValueError("archgraph needs to be either 'tokyo', 'rochester', or 'sycamore'")
     
     t0 = time.time()
-    num_circuits = main(opt, graph_from_name(name))
+    num_circuits = main(objective, graph_from_name(archgraph))
     t1 = time.time()
 
-    print(f"Generated {num_circuits} circuits in {(t1 - t0):.3f} s.")
+    print(f"[{objective}_{archgraph}] Generated {num_circuits} circuits in {(t1 - t0):.3f} s.")

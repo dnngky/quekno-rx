@@ -1,24 +1,29 @@
+from enum import Enum
+from rustworkx import is_subgraph_isomorphic
 from typing import Iterable, Optional
 
 from .graph import Graph
 from .graph_data import Edge
+from .permutation import Permutation
+
+VF2_CALL_LIMIT = 10000
 
 
-class singleton:
-    """
-    Singleton decorator (for Graph objects).
-    """
-    objs = {}
+# === QUEKNO parameters ===
 
-    def __init__(self, cls):
-        self.cls = cls
+class OptType(Enum):
+    OPT1 = "opt1"
+    OPT2 = "opt2"
+    DEPTH = "depth"
 
-    def __call__(self, *args) -> Graph:
-        if self.cls not in singleton.objs:
-            obj = object.__new__(self.cls)
-            obj.__init__(*args)
-            singleton.objs[self.cls] = obj
-        return singleton.objs[self.cls]
+class SubgraphSize(Enum):
+    TOKYO = 5
+    SMALL = 8
+    LARGE = 16
+
+class QBGRatio(Enum):
+    TFL = 1.5
+    QSE = 2.55
 
 
 def is_disjoint(edges: Iterable[Optional[Edge]]) -> bool:
@@ -33,3 +38,39 @@ def is_disjoint(edges: Iterable[Optional[Edge]]) -> bool:
     """
     nodes = [node for edge in edges for node in edge if not edge.is_null]
     return len(nodes) == len(set(nodes)) # disjoint if no duplicates
+
+
+def is_strong_glink(
+    archgraph: Graph,
+    prev_subgraph: Graph,
+    next_subgraph: Graph,
+    perm: Permutation
+) -> bool:
+    """
+    Determine whether the given glink is strong.
+
+    Params:
+    - `archgraph`: architecture graph
+    - `prev_subgraph`: previous subgraph in the glink
+    - `next_subgraph`: next subgraph in the glink
+    - `perms`: permutation inducing the glink
+
+    Returns:
+    - True if the induced glink is strong
+    """
+    # Construct permuted graph
+    perm_graph = next_subgraph.copy()
+    for src, dst in perm.items():
+        perm_graph.permute(src, dst, inplace = True)
+
+    # If no changes have been made then the glink cannot be strong
+    if perm_graph == next_subgraph:
+        return False
+
+    # Glink is strong if its union graph is not isomorphic to archgraph
+    return is_subgraph_isomorphic(
+        archgraph.pygraph(),
+        prev_subgraph.union(perm_graph).pygraph(),
+        induced = False,
+        call_limit = VF2_CALL_LIMIT
+    )

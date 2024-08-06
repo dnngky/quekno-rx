@@ -11,7 +11,7 @@ def formatted(src: Node, dst: Node):
 
 class Permutation:
     """
-    An ordered dict-like object representing a permutation of nodes.
+    A dict-like object representing a permutation of nodes.
     """
     __perm: tuple[Edge]
 
@@ -48,17 +48,17 @@ class Permutation:
         return self.__type
     
     def keys(self) -> list[Node]:
-        return tuple([src for src, _ in self.items()])
+        return [src for src, _ in self.items()]
     
     def values(self) -> list[Node]:
-        return tuple([dst for _, dst in self.items()])
+        return [dst for _, dst in self.items()]
     
     def items(self) -> tuple[Edge]:
         return self.__perm
     
     def __apply_map(
         self,
-        original: list[Node],
+        original: Sequence[Node],
         inplace: bool = False
     ) -> Optional[list[Node]]:
         
@@ -110,10 +110,13 @@ class Permutation:
     
     def oneline(
         self,
-        original: list[Node],
+        original: Optional[list[Node]] = None,
         highlight: bool = True,
         padding: str = ""
     ) -> str:
+        
+        if original is None:
+            original = self.keys()
         if highlight:
             permuted = (formatted(src, dst) for src, dst in zip(original, self.apply(original)))
         else:
@@ -129,6 +132,7 @@ class Permutation:
         highlight: bool = True,
         padding: str = ""
     ) -> str:
+        
         if highlight:
             permuted = (formatted(src, dst) for src, dst in zip(original, self.apply(original)))
             original = (formatted(src, dst) for src, dst in zip(self.apply(original), original))
