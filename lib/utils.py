@@ -12,9 +12,9 @@ VF2_CALL_LIMIT = 10000
 # === QUEKNO parameters ===
 
 class OptType(Enum):
-    OPT1 = "opt1"
-    OPT2 = "opt2"
-    DEPTH = "depth"
+    OPT1 = 1
+    OPT2 = 2
+    DEPTH = None
 
 class SubgraphSize(Enum):
     TOKYO = 5

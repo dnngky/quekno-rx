@@ -1,4 +1,5 @@
-from lib import glink, graph
+from lib import glink
+from lib import graph
 from lib import graph_data
 from lib import graph_utils
 from lib import permutation

@@ -17,8 +17,6 @@ $ sh install.sh
 ```
 Alternatively, the user may choose to manually install the packages listed in `install.sh`.
 
-Once generated, benchmarks may be found in `out`.
-
 ## Benchmark construction
 
 Benchmarks are categorised into the following packages, where `gate` and `depth` refer to gate size and depth optimisation objectives respectively:
@@ -36,6 +34,21 @@ Each package contains three sub-directories:
 - `circuits_barriered`, which contains the same circuits but with a barrier added between every glink; and
 - `results`, which contains the metadata of the circuits.
 
+Each file in `results` comprises the following fields:
+
+- `name`: name of the constructed circuit;
+- `opt_type`: optimisation objective (`opt1`, `opt2`, or `depth`);
+- `cost`: QUEKNO transformation cost (see original paper);
+- `archgraph`: associated architecture graph;
+- `subgraph_size`: average size (number of edges) of subgraphs across all glinks;
+- `qbg_ratio`: ratio $M_1/M_2$, where $M_k$ denotes the number of $k$-qubit gates;
+- `gate_size`: number of gates in the constructed circuit;
+- `depth`: depth of the constructed circuit;
+- `gate_cost`: incurred number of gates following routing (SWAP insertion) and decomposition (from SWAPs to CNOTs);
+- `depth_cost`: incurred depth following routing and decomposition;
+- `init_map`: initial permutation $\pi_1$, written in one-line notation (w.r.t. the natural ordering $0, 1, 2, \cdots, |\texttt{archgraph}| - 1$).
+- `swaps`: a sequence of (edge-based) permutations $\pi_2, \cdots, \pi_{\ell + 1}$, with the $i$-th line specifying the swaps involved in the $(i + 1)$-th permutation.
+
 To generate all benchmarks, simply run:
 ```bash
 $ sh run.sh
@@ -47,12 +60,14 @@ $ python main.py [objective] [archgraph]
 ```
 Here, `objective = {gate, depth}` and `archgraph = {tokyo, rochester, sycamore}`.
 
+Once generated, benchmarks may be found in `out`.
+
 ## Configurations
 
 The file `config.py` defines a number of constants which affect the speed and output of the benchmark construction:
 
 - `ONE_QUBIT_GATE` and `TWO_QUBIT_GATE` specify the type of gates used in the constructed circuits;
 - `CONSEC_SWAP_BIAS` specifies the bias (if any) towards selecting consecutive swaps for `opt_type = OPT2`: a value $k$ indicates a $0.5 + k$ probability of selecting consecutive swaps;
-- `SUBGRAPH_SIZE_STD` specifies the variance in the number of edges $m$ of randomly generated glink subgraphs: a value $\sigma$ indicates that $m \sim \mathcal N(\mu, \sigma^2)$ where $\mu$ is `subgraph_size`;
-- `RAND_EDGES_VAR` specifies the variance in the number of edges (2-qubit gates) randomly sampled from glink subgraphs during circuit construction: a value $k$ indicates that the number of edges sampled is $m(1 + kn)$ where $n \sim \mathcal U\{1,4\}$ ($\mathcal U$ denoting the discrete uniform distribution) and $m$ is the number edges in the subgraph;
+- `SUBGRAPH_SIZE_STD` specifies the variance in the number of edges of randomly generated glink subgraphs: a value $\sigma$ indicates that $X \sim \mathcal N(\mu, \sigma^2)$ where $X$ is the number of edges and $\mu$ is `subgraph_size`;
+- `RAND_EDGES_VAR` specifies the variance in the number of edges (2-qubit gates) randomly sampled from glink subgraphs during circuit construction: a value $k$ indicates that the number of edges sampled is $m(1 + kX)$ where $X \sim \mathcal U[1,4]$ and $m$ is the number edges in the subgraph;
 - `GLINK_SEARCH_PATIENCE` specifies the number of attempts to find a strong glink-inducing permutation before moving on to another glink, i.e., generating another subgraph.

@@ -19,71 +19,42 @@ class QUEKNO:
     __opt_type: OptType
     __target_cost: int
     __archgraph: Graph
-    __subgraph_size: int
-    __qbg_ratio: float
+    __subgraph_size: SubgraphSize
+    __qbg_ratio: QBGRatio
 
-    def __init__(self, **params):
-
-        self.__opt_type = None
-        self.__target_cost = 0
-        self.__archgraph = None
-        self.__subgraph_size = 0
-        self.__qbg_ratio = 0.
-
-        # Process keyword arguments
-        for key, val in params.items():
-            if key == "opt_type":
-                self.opt_type = val
-            elif key == "target_cost":
-                self.target_cost = val
-            elif key == "archgraph":
-                self.archgraph = val
-            elif key == "subgraph_size":
-                self.subgraph_size = val
-            elif key == "qbg_ratio":
-                self.qbg_ratio = val
-            else:
-                raise ValueError(f"unknown keyword argument '{key}'")
+    def __init__(
+        self,
+        opt_type: OptType,
+        target_cost: int,
+        archgraph: Graph,
+        subgraph_size: SubgraphSize,
+        qbg_ratio: QBGRatio
+    ):
+        self.__opt_type = opt_type
+        self.__target_cost = target_cost
+        self.__archgraph = archgraph
+        self.__subgraph_size = subgraph_size
+        self.__qbg_ratio = qbg_ratio
     
     @property
     def opt_type(self) -> OptType:
         return self.__opt_type
     
-    @opt_type.setter
-    def opt_type(self, opt_type: OptType) -> None:
-        self.__opt_type = opt_type
-    
     @property
     def target_cost(self) -> int:
         return self.__target_cost
-    
-    @target_cost.setter
-    def target_cost(self, target_cost: int) -> None:
-        self.__target_cost = target_cost
     
     @property
     def archgraph(self) -> Graph:
         return self.__archgraph
     
-    @archgraph.setter
-    def archgraph(self, archgraph: Graph) -> None:
-        self.__archgraph = archgraph
-    
     @property
     def subgraph_size(self) -> int:
-        return self.__subgraph_size
-    
-    @subgraph_size.setter
-    def subgraph_size(self, subgraph_size: SubgraphSize) -> None:
-        self.__subgraph_size = subgraph_size.value
+        return self.__subgraph_size.value
     
     @property
     def qbg_ratio(self) -> float:
-        return self.__qbg_ratio
-    
-    @qbg_ratio.setter
-    def qbg_ratio(self, qbg_ratio: QBGRatio) -> None:
-        self.__qbg_ratio = qbg_ratio.value
+        return self.__qbg_ratio.value
 
     def random_subgraph(self) -> Graph:
         """
@@ -161,8 +132,7 @@ class QUEKNO:
         - a permutation inducing the glink
         """
         if self.opt_type != OptType.DEPTH:
-            num_swaps = 1 if self.opt_type == OptType.OPT1 else 2
-            num_swaps = min(num_swaps, self.target_cost - cost)
+            num_swaps = min(self.opt_type.value, self.target_cost - cost)
             perms = self.__consecutive_permutations(num_swaps)
         else:
             perms = self.__parallel_permutations()
@@ -276,10 +246,9 @@ class QUEKNO:
 
             # Add gates to circuit
             for gate in gate_list:
-                if isinstance(gate, Edge):
-                    circuit.append(TWO_QUBIT_GATE, [permuted.index(qubit) for qubit in gate])
-                else: # one-qubit gate
-                    circuit.append(ONE_QUBIT_GATE, [permuted.index(gate)])
+                gate_type = TWO_QUBIT_GATE if isinstance(gate, Edge) else ONE_QUBIT_GATE
+                gate = gate if isinstance(gate, Edge) else [gate]
+                circuit.append(gate_type, tuple(map(permuted.index, gate)))
             if add_barriers and glink.next is not None:
                 circuit.barrier()
 
@@ -350,7 +319,7 @@ class QUEKNO:
             i += 1
         
         if glink.next is not None:
-            raise CircuitError(f"too many glinks")
+            raise CircuitError("too many glinks")
         
         if pred_cost != true_cost:
             raise CircuitError(f"{pred_cost = }, {true_cost = })")
@@ -397,7 +366,7 @@ class QUEKNO:
         subgraph_sizes = [glink.graph.num_edges for glink in glink_chain.glinks()]
         results = {
             # parameters
-            "opt_type": self.opt_type.value,
+            "opt_type": f"opt{self.opt_type.value}" if self.opt_type != OptType.DEPTH else "depth",
             "cost": cost,
             "archgraph": self.archgraph.name,
             "subgraph_size": sum(subgraph_sizes) / len(subgraph_sizes),
@@ -430,7 +399,6 @@ if __name__ == "__main__":
     circuit, routed_circuit, results = builder.run(add_barriers = True)
     print("=== RESULTS ===")
     for key, val in results.items():
-        if key == "swaps":
-            print(f"{key}: {'; '.join(map(str, val))}")
-        else:
-            print(f"{key}: {val}")
+        if isinstance(val, float):
+            val = f"{val:.3f}"
+        print(f"{key}: {val}")
